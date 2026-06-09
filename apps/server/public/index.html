@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BITMOTH 彼魔</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:     #07071a;
+    --card:   #0d0d28;
+    --card2:  #111130;
+    --accent: #00ff99;
+    --dim:    #334466;
+    --text:   #c8d8f0;
+    --hp:     #22dd66;
+    --atk:    #ff4455;
+    --def:    #4488ff;
+    --spd:    #ffcc00;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Header ── */
+  header {
+    text-align: center;
+    padding: 40px 20px 24px;
+    border-bottom: 2px solid var(--dim);
+    background: linear-gradient(180deg, #0a0a30 0%, transparent 100%);
+  }
+  .logo {
+    font-size: clamp(20px, 5vw, 36px);
+    color: var(--accent);
+    text-shadow: 0 0 20px var(--accent), 0 0 40px var(--accent);
+    letter-spacing: 6px;
+    margin-bottom: 12px;
+  }
+  .logo-sub {
+    font-size: 9px;
+    color: var(--dim);
+    letter-spacing: 2px;
+  }
+
+  /* ── Container ── */
+  .container { max-width: 900px; margin: 0 auto; padding: 0 16px 60px; }
+
+  /* ── Input box ── */
+  .summon-box {
+    margin: 32px 0 0;
+    padding: 24px;
+    background: var(--card);
+    border: 2px solid var(--dim);
+  }
+  .input-row {
+    display: flex;
+    gap: 12px;
+  }
+  .seed-input {
+    flex: 1;
+    background: #050518;
+    border: 2px solid var(--dim);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 10px;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .seed-input::placeholder { color: var(--dim); }
+  .seed-input:focus { border-color: var(--accent); }
+
+  .btn {
+    background: transparent;
+    border: 2px solid var(--accent);
+    color: var(--accent);
+    font-family: inherit;
+    font-size: 10px;
+    padding: 12px 20px;
+    cursor: pointer;
+    transition: background .1s, color .1s;
+    white-space: nowrap;
+  }
+  .btn:hover  { background: var(--accent); color: #000; }
+  .btn:active { transform: translate(1px,1px); }
+  .btn-sm {
+    border-color: var(--dim);
+    color: var(--dim);
+    font-size: 8px;
+    padding: 8px 14px;
+  }
+  .btn-sm:hover { border-color: var(--accent); color: var(--accent); background: transparent; }
+
+  .hash-live {
+    margin-top: 10px;
+    font-size: 8px;
+    color: var(--dim);
+    word-break: break-all;
+    line-height: 1.6;
+    min-height: 1.2em;
+  }
+
+  /* ── Loading ── */
+  .loading {
+    text-align: center;
+    padding: 48px 0;
+    color: var(--accent);
+    font-size: 11px;
+  }
+  .loading-dots::after {
+    content: '';
+    animation: dots 1.2s steps(4, end) infinite;
+  }
+  @keyframes dots {
+    0%  { content: ''; }
+    25% { content: ' .'; }
+    50% { content: ' . .'; }
+    75% { content: ' . . .'; }
+  }
+
+  /* ── Result card ── */
+  .bitmoth-card {
+    display: flex;
+    gap: 28px;
+    margin-top: 28px;
+    padding: 24px;
+    background: var(--card);
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 30px rgba(0,255,153,.15), 0 0 80px rgba(0,0,40,.6);
+    animation: fadeIn .3s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } }
+
+  @media (max-width: 600px) {
+    .bitmoth-card { flex-direction: column; align-items: center; }
+  }
+
+  .sprite-panel {
+    flex-shrink: 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  #sprite-canvas {
+    display: block;
+    image-rendering: pixelated;
+  }
+  .cached-tag {
+    font-size: 7px;
+    color: #00cc77;
+    border: 1px solid #00cc77;
+    padding: 3px 6px;
+  }
+
+  .info-panel { flex: 1; min-width: 0; }
+
+  .race-badge {
+    display: inline-block;
+    font-size: 8px;
+    padding: 4px 10px;
+    margin-bottom: 14px;
+    color: #000;
+    font-weight: bold;
+  }
+
+  .monster-name {
+    font-size: clamp(14px, 3vw, 20px);
+    color: #fff;
+    text-shadow: 0 0 12px currentColor;
+    margin-bottom: 6px;
+    line-height: 1.5;
+  }
+  .monster-title-text { color: var(--dim); font-size: .85em; }
+
+  .monster-flavor {
+    font-size: 9px;
+    color: var(--dim);
+    line-height: 2;
+    margin-bottom: 22px;
+    font-family: 'Noto Sans TC', sans-serif;
+  }
+
+  /* ── Stats ── */
+  .stats { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; }
+  .stat-row { display: flex; align-items: center; gap: 10px; }
+  .stat-label {
+    width: 34px;
+    font-size: 8px;
+    color: var(--dim);
+    flex-shrink: 0;
+  }
+  .stat-bar {
+    flex: 1;
+    height: 10px;
+    background: #0a0a24;
+    border: 1px solid #222244;
+    overflow: hidden;
+  }
+  .stat-fill {
+    height: 100%;
+    width: 0;
+    transition: width .6s cubic-bezier(.2,1,.3,1);
+  }
+  .hp-fill  { background: var(--hp);  box-shadow: 0 0 6px var(--hp); }
+  .atk-fill { background: var(--atk); box-shadow: 0 0 6px var(--atk); }
+  .def-fill { background: var(--def); box-shadow: 0 0 6px var(--def); }
+  .spd-fill { background: var(--spd); box-shadow: 0 0 6px var(--spd); }
+  .stat-val {
+    width: 30px;
+    text-align: right;
+    font-size: 9px;
+    color: var(--text);
+    flex-shrink: 0;
+  }
+
+  /* ── Actions ── */
+  .actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .hash-mini { font-size: 7px; color: #223; word-break: break-all; }
+
+  /* ── Gallery ── */
+  .gallery-section { margin-top: 48px; }
+  .gallery-title {
+    font-size: 10px;
+    color: var(--dim);
+    border-bottom: 1px solid var(--dim);
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 12px;
+  }
+  .gallery-card {
+    background: var(--card2);
+    border: 1px solid var(--dim);
+    padding: 10px;
+    cursor: pointer;
+    transition: border-color .15s, transform .1s;
+    text-align: center;
+  }
+  .gallery-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .gallery-card canvas { image-rendering: pixelated; display: block; margin: 0 auto 8px; }
+  .gallery-card-name { font-size: 7px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ── Utility ── */
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">BITMOTH 彼魔</div>
+  <div class="logo-sub">封印在最小位元中的上古巨獸</div>
+</header>
+
+<div class="container">
+
+  <div class="summon-box">
+    <div class="input-row">
+      <input id="seed-input" class="seed-input" type="text"
+             placeholder="輸入任意字串召喚彼魔…" autocomplete="off" spellcheck="false">
+      <button class="btn" onclick="summon()">召 喚</button>
+    </div>
+    <div class="hash-live" id="hash-live"></div>
+  </div>
+
+  <div id="loading" class="loading hidden">
+    <span class="loading-dots">召喚中</span>
+  </div>
+
+  <div id="result" class="hidden">
+    <div class="bitmoth-card">
+      <div class="sprite-panel">
+        <canvas id="sprite-canvas"></canvas>
+        <div id="cached-tag" class="cached-tag hidden">⚡ CACHED</div>
+      </div>
+      <div class="info-panel">
+        <div id="race-badge" class="race-badge"></div>
+        <div class="monster-name">
+          <span id="monster-title" class="monster-title-text"></span>
+          <span id="monster-name"></span>
+        </div>
+        <div id="monster-flavor" class="monster-flavor"></div>
+        <div class="stats">
+          <div class="stat-row">
+            <span class="stat-label">HP</span>
+            <div class="stat-bar"><div id="fill-hp"  class="stat-fill hp-fill"></div></div>
+            <span class="stat-val" id="val-hp"></span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">ATK</span>
+            <div class="stat-bar"><div id="fill-atk" class="stat-fill atk-fill"></div></div>
+            <span class="stat-val" id="val-atk"></span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">DEF</span>
+            <div class="stat-bar"><div id="fill-def" class="stat-fill def-fill"></div></div>
+            <span class="stat-val" id="val-def"></span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">SPD</span>
+            <div class="stat-bar"><div id="fill-spd" class="stat-fill spd-fill"></div></div>
+            <span class="stat-val" id="val-spd"></span>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="share-btn" class="btn btn-sm" onclick="shareBitmoth()">分享連結</button>
+          <div id="hash-mini" class="hash-mini"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="gallery-section" class="gallery-section hidden">
+    <div class="gallery-title">▼ 召喚記錄</div>
+    <div id="gallery-grid" class="gallery-grid"></div>
+  </div>
+
+</div>
+
+<script>
+/* ───────── constants ───────── */
+const RACE_NAMES  = ['龍種','妖精種','惡魔種','獸種','魚種','鳥種','元素種','機械種','亡靈種'];
+const RACE_COLORS = ['#ff4444','#ff88ff','#cc44ff','#ff8844','#4499ff','#ffcc00','#44ffcc','#aabbcc','#88ff88'];
+
+/* ───────── helpers ───────── */
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function boostColor(hex) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  const br = (r*299 + g*587 + b*114) / 1000;
+  if (br < 55) {
+    const f = 1 + (55-br)/110;
+    const c = v => Math.min(255, Math.round(v*f)).toString(16).padStart(2,'0');
+    return `#${c(r)}${c(g)}${c(b)}`;
+  }
+  return hex;
+}
+
+/* ───────── sprite renderer ───────── */
+function renderSprite(canvas, hash, dna, scale = 14) {
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  const W = 16, H = 24;
+  canvas.width  = W * scale;
+  canvas.height = H * scale;
+
+  const primary   = boostColor(dna.primaryColor);
+  const secondary = boostColor(dna.secondaryColor);
+
+  /* background */
+  ctx.fillStyle = '#050514';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  /* build left-half pixel grid from hash bytes */
+  const left = [];
+  for (let r = 0; r < H; r++) {
+    const byte = parseInt(hash.slice(r*2, r*2+2), 16);
+    left.push(Array.from({length:8}, (_,c) => (byte >> c) & 1));
+  }
+  /* mirror: full 16-wide grid */
+  const grid = left.map(row => [...row, ...[...row].reverse()]);
+
+  const isEdge = (r,c) => [[-1,0],[1,0],[0,-1],[0,1]].some(([dr,dc]) => {
+    const nr=r+dr, nc=c+dc;
+    return nr<0||nr>=H||nc<0||nc>=W||!grid[nr][nc];
+  });
+
+  /* soft glow pass (skip for thumbnails) */
+  if (scale >= 8) {
+    ctx.save();
+    ctx.shadowColor = secondary;
+    ctx.shadowBlur  = scale * 1.5;
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle   = secondary;
+    for (let r=0;r<H;r++) for (let c=0;c<W;c++)
+      if (grid[r][c]) ctx.fillRect(c*scale, r*scale, scale, scale);
+    ctx.restore();
+  }
+
+  /* draw pixels */
+  for (let r=0;r<H;r++) {
+    for (let c=0;c<W;c++) {
+      if (!grid[r][c]) continue;
+      ctx.fillStyle = isEdge(r,c) ? secondary : primary;
+      ctx.fillRect(c*scale, r*scale, scale, scale);
+      /* top-left highlight */
+      if (scale >= 8 && !isEdge(r,c)) {
+        ctx.fillStyle = 'rgba(255,255,255,0.22)';
+        const s = Math.max(2, Math.floor(scale*0.35));
+        ctx.fillRect(c*scale, r*scale, s, s);
+      }
+    }
+  }
+
+  /* force-draw eyes */
+  if (scale >= 8) {
+    const eyeRow = 4 + (dna.eyeId % 4);
+    const eyeCol = 3 + (dna.eyeId % 2);
+    const mirCol  = W - 1 - eyeCol;
+    [eyeCol, mirCol].forEach(c => {
+      ctx.fillStyle = '#111';
+      ctx.fillRect(c*scale, eyeRow*scale, scale, scale);
+      ctx.fillStyle = '#ffffff';
+      const p = Math.max(1, Math.floor(scale*0.18));
+      ctx.fillRect(c*scale+p, eyeRow*scale+p, scale-2*p, scale-2*p);
+    });
+  }
+
+  /* scanlines */
+  if (scale >= 8) {
+    const step = Math.max(2, Math.floor(scale/4));
+    for (let y=0; y<canvas.height; y+=step) {
+      ctx.fillStyle = 'rgba(0,0,0,0.1)';
+      ctx.fillRect(0, y, canvas.width, 1);
+    }
+  }
+}
+
+/* ───────── stat bar ───────── */
+function setBar(id, value, max) {
+  document.getElementById(`val-${id}`).textContent = value;
+  setTimeout(() => {
+    document.getElementById(`fill-${id}`).style.width = `${(value/max*100).toFixed(1)}%`;
+  }, 60);
+}
+
+/* ───────── display result ───────── */
+function displayResult(data) {
+  const { hash, dna, title, name, flavor, hp, atk, def, spd, cached } = data;
+
+  renderSprite(document.getElementById('sprite-canvas'), hash, dna, 14);
+
+  document.getElementById('race-badge').textContent = RACE_NAMES[dna.raceId];
+  document.getElementById('race-badge').style.background = RACE_COLORS[dna.raceId];
+  document.getElementById('monster-title').textContent = title;
+  document.getElementById('monster-name').textContent  = name;
+  document.getElementById('monster-flavor').textContent = flavor;
+  document.getElementById('hash-mini').textContent = hash.slice(0,24) + '…';
+
+  const cachedTag = document.getElementById('cached-tag');
+  cached ? cachedTag.classList.remove('hidden') : cachedTag.classList.add('hidden');
+
+  setBar('hp',  hp,  999);
+  setBar('atk', atk,  99);
+  setBar('def', def,  99);
+  setBar('spd', spd,  99);
+
+  document.getElementById('result').classList.remove('hidden');
+}
+
+/* ───────── summon ───────── */
+async function summon() {
+  const seed = document.getElementById('seed-input').value.trim();
+  if (!seed) return;
+
+  const hash = await sha256(seed);
+  document.getElementById('hash-live').textContent = hash;
+  document.getElementById('loading').classList.remove('hidden');
+  document.getElementById('result').classList.add('hidden');
+
+  // Reset stat bars
+  ['hp','atk','def','spd'].forEach(s => {
+    document.getElementById(`fill-${s}`).style.width = '0';
+  });
+
+  try {
+    const res = await fetch(`/api/bitmoth/${hash}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    displayResult(data);
+
+    const url = new URL(window.location);
+    url.searchParams.set('seed', seed);
+    window.history.pushState({}, '', url);
+
+    loadGallery();
+  } catch (err) {
+    alert(`召喚失敗：${err.message}`);
+  } finally {
+    document.getElementById('loading').classList.add('hidden');
+  }
+}
+
+/* ───────── share ───────── */
+function shareBitmoth() {
+  navigator.clipboard.writeText(window.location.href).then(() => {
+    const btn = document.getElementById('share-btn');
+    btn.textContent = '✓ 已複製';
+    setTimeout(() => { btn.textContent = '分享連結'; }, 2000);
+  });
+}
+
+/* ───────── gallery ───────── */
+async function loadGallery() {
+  try {
+    const res = await fetch('/api/gallery');
+    const items = await res.json();
+    if (!items.length) return;
+
+    const grid = document.getElementById('gallery-grid');
+    grid.innerHTML = '';
+    items.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'gallery-card';
+
+      const cvs = document.createElement('canvas');
+      renderSprite(cvs, item.hash, item.dna, 5);
+
+      const nameEl = document.createElement('div');
+      nameEl.className = 'gallery-card-name';
+      nameEl.textContent = item.title + item.name;
+
+      card.append(cvs, nameEl);
+      card.onclick = () => {
+        displayResult(item);
+        const url = new URL(window.location);
+        url.searchParams.delete('seed');
+        window.history.pushState({}, '', url);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+      grid.appendChild(card);
+    });
+
+    document.getElementById('gallery-section').classList.remove('hidden');
+  } catch (e) {
+    console.warn('Gallery load failed:', e);
+  }
+}
+
+/* ───────── init ───────── */
+document.addEventListener('DOMContentLoaded', async () => {
+  /* real-time hash preview */
+  let debounce;
+  document.getElementById('seed-input').addEventListener('input', e => {
+    clearTimeout(debounce);
+    const v = e.target.value.trim();
+    if (!v) { document.getElementById('hash-live').textContent = ''; return; }
+    debounce = setTimeout(async () => {
+      document.getElementById('hash-live').textContent = await sha256(v);
+    }, 200);
+  });
+
+  document.getElementById('seed-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') summon();
+  });
+
+  /* URL seed auto-summon */
+  const params = new URLSearchParams(window.location.search);
+  const seed = params.get('seed');
+  if (seed) {
+    document.getElementById('seed-input').value = seed;
+    summon();
+  }
+
+  loadGallery();
+});
+</script>
+</body>
+</html>

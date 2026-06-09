@@ -1,3 +1,28 @@
+# Claude Code
+.claude/memory/
+
+# macOS
+.DS_Store
+**/.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# JetBrains IDE
+.idea/
+
+# VS Code (personal settings only; commit .vscode/settings.json if you want shared editor config)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+
+# Docker local overrides
+docker-compose.override.yml
+
 # Logs
 logs
 *.log

@@ -1,0 +1,33 @@
+const RACE_NAMES = ['龍種','妖精種','惡魔種','獸種','魚種','鳥種','元素種','機械種','亡靈種'];
+const STAT_HINTS = [
+  '高 ATK / DEF','高 SPD，低 HP','均衡偏高 ATK','高 HP / ATK',
+  '高 DEF / SPD','最高 SPD','依屬性偏移','高 DEF，低 SPD','高 ATK，低 DEF',
+];
+
+export function buildPrompt(dna) {
+  const race = RACE_NAMES[dna.raceId];
+  return `你是一個奇幻世界的神話學者，負責為召喚出的彼魔賦予名諱與數值。
+
+## 彼魔基因
+- 種族：${race}
+- 主色：${dna.primaryColor}
+- 次色：${dna.secondaryColor}
+- 體型變體 ID：${dna.variantId}
+- 魔眼 ID：${dna.eyeId}
+- 裝飾 ID：${dna.decoId}
+- 熵碼（可作為靈感）：${dna.entropyHex}
+
+## 命名規則
+- title（修飾詞）：2~4 字，如「源碼的」「永夜的」「熔岩的」
+- name（核心稱號）：2~6 字，如「暴食」「裂淵」「虛無吞噬者」
+- flavor：一句話描述，20 字以內
+
+## 數值規則
+- HP：100 ~ 999
+- ATK / DEF / SPD：10 ~ 99
+- ATK + DEF + SPD 總和不超過 200
+- 依種族傾向偏移（${race}：${STAT_HINTS[dna.raceId]}）
+
+請僅回覆以下 JSON，不要包含任何其他文字：
+{"title":"...","name":"...","flavor":"...","hp":0,"atk":0,"def":0,"spd":0}`;
+}
