@@ -1,0 +1,8 @@
+{
+  "name": "bitmoth",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

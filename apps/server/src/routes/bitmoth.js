@@ -1,4 +1,4 @@
-import { decodeDna, DNA_SCHEMA_VERSION } from '../dnaDecoder.js';
+import { decodeDna, DNA_SCHEMA_VERSION } from '@bitmoth/core';
 import { getCached, insertCache, getAll } from '../db/index.js';
 import { buildPrompt } from '../ollama/prompt.js';
 import { generateStats, generateFallbackStats } from '../ollama/client.js';

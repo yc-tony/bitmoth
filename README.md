@@ -2,16 +2,16 @@
 
 > 封印在最小位元（Bit）中的上古巨獸（Behemoth）
 
-跨平台雜湊像素巨獸生成器。透過輸入任意字串，利用確定性雜湊演算法將數據解碼為獨一無二的「彼魔基因（DNA）」，並即時渲染出復古 8-bit/16-bit 左右對稱的像素魔獸。**相同的輸入源將永遠召喚出絕對相同的彼魔。**
+跨平台雜湊像素巨獸生成器。輸入任意字串，透過確定性雜湊演算法解碼出獨一無二的「彼魔基因（DNA）」，以復古 8-bit/16-bit 像素風格渲染魔獸。**相同的輸入永遠召喚出絕對相同的彼魔。**
 
 ---
 
 ## 目錄
 
+- [專案架構](#專案架構)
 - [快速啟動](#快速啟動)
-- [系統架構總覽](#系統架構總覽)
-- [技術棧](#技術棧)
-- [專案結構](#專案結構)
+- [孵化流程](#孵化流程)
+- [API 文件](#api-文件)
 - [彼魔種族系統](#彼魔種族系統)
 - [彼魔 DNA 解碼演算法](#彼魔-dna-解碼演算法)
 - [名稱與數值生成系統](#名稱與數值生成系統)
@@ -19,13 +19,49 @@
 
 ---
 
+## 專案架構
+
+```
+bitmoth/
+├── package.json                  ← npm workspaces root
+│
+├── packages/
+│   └── core/                     ← @bitmoth/core（共用邏輯）
+│       └── dnaDecoder.js         ← hash → DNA 演算法（凍結）
+│
+└── apps/
+    ├── server/                   ← Fastify API server（port 3000）
+    │   └── src/
+    │       ├── pokedex/          ← 圖鑑 service
+    │       ├── routes/           ← Bitmoth AI 生成 API
+    │       ├── db/               ← MySQL（bitmoth_cache）
+    │       └── ollama/           ← AI 生成邏輯
+    │
+    ├── desktop/                  ← Tauri + React（macOS / Windows）
+    │   └── src/
+    │       ├── screens/          ← SummonScreen / EggScreen / CollectionScreen
+    │       └── lib/              ← hash.ts / pokedex.ts
+    │
+    └── mobile/                   ← Expo React Native（iOS / Android）
+        ├── app/(tabs)/           ← 掃描 / 孵化 / 收藏
+        └── lib/                  ← hash.ts / pokedex.ts
+```
+
+---
+
 ## 快速啟動
 
 ### 前置需求
 
-- Node.js 18+
-- Docker（用於 MySQL）
-- Ollama（選用，未安裝時自動 fallback 到確定性數值）
+| 工具 | 版本 | 用途 |
+|------|------|------|
+| Node.js | 18+ | 所有 app |
+| Docker | 任意 | MySQL container |
+| Rust + Cargo | 1.70+ | Desktop (Tauri) build |
+| Xcode / Android Studio | 最新 | Mobile build |
+| Ollama | 選用 | 本地 AI 生成名稱與數值 |
+
+---
 
 ### 1. 啟動 MySQL
 
@@ -33,27 +69,19 @@
 docker compose up -d
 ```
 
+---
+
 ### 2. 啟動 Server
 
 ```bash
 cd apps/server
+cp .env.example .env   # 第一次需要
 npm install
-npm run dev      # node --watch，存檔自動重啟
+npm run dev
+# → http://localhost:3000
 ```
 
-### 3. 開啟瀏覽器
-
-```
-http://localhost:3000
-```
-
-### 環境變數
-
-複製 `.env.example` 為 `.env`（已預設本機值，開箱即用）：
-
-```bash
-cp .env.example .env
-```
+**Server 環境變數（`.env`）：**
 
 | 變數 | 預設值 | 說明 |
 |------|--------|------|
@@ -66,115 +94,108 @@ cp .env.example .env
 | `OLLAMA_MODEL` | `llama3.2` | 使用的模型 |
 | `SERVER_PORT` | `3000` | Server port |
 
-### Ollama（選用）
+---
+
+### 3. 啟動 Desktop App（Tauri）
+
+```bash
+cd apps/desktop
+npm install
+npm run tauri dev
+```
+
+> 第一次執行會編譯 Rust，約需 3～5 分鐘。之後重啟只需幾秒。
+
+**Desktop 環境變數（`apps/desktop/.env`）：**
+
+| 變數 | 預設值 | 說明 |
+|------|--------|------|
+| `VITE_SERVER_URL` | `http://localhost:3000` | 圖鑑 Server 位址 |
+
+打包成可執行檔：
+
+```bash
+npm run tauri build
+# 輸出在 apps/desktop/src-tauri/target/release/bundle/
+```
+
+---
+
+### 4. 啟動 Mobile App（Expo）
+
+```bash
+cd apps/mobile
+npm install
+npm start          # 開啟 Expo Dev Tools
+
+npm run ios        # 啟動 iOS Simulator
+npm run android    # 啟動 Android Emulator
+```
+
+**Mobile 環境變數（`apps/mobile/.env`）：**
+
+| 變數 | 預設值 | 說明 |
+|------|--------|------|
+| `EXPO_PUBLIC_SERVER_URL` | `http://localhost:3000` | 圖鑑 Server 位址（裝置需與 server 同網路） |
+
+---
+
+### 5. Ollama（選用）
+
+未啟動時 server 自動 fallback，以種族 bias 確定性產生名稱與數值，不影響核心流程。
 
 ```bash
 ollama pull llama3.2
 ollama serve
 ```
 
-未啟動時 server 會自動 fallback，以種族 bias 產生確定性名稱與數值，不影響 demo 運行。
-
 ---
 
-## 系統架構總覽
+## 孵化流程
 
 ```
-Browser（Web Demo）
+輸入任意字串（或掃描 QR Code）
+        ↓
+    SHA-256 → Hash
+        ↓
+  DNA decode（@bitmoth/core）
+  種族 / 顏色 / 眼型 / 裝飾
+        ↓
+  渲染「蛋」（待識別）🥚
+        ↓
+  查詢圖鑑 Server（需網路）
+        │
+  ┌─────┴─────┐
+  │有記錄      │無記錄
+  │           ↓
+  │      Ollama 生成 name / stats
+  │           ↓
+  │      登記到圖鑑（INSERT IGNORE）
   │
-  ├─ 1. 輸入任意字串
-  ├─ 2. SHA-256 → hash               （SubtleCrypto API，純前端）
-  ├─ 3. hash → BitmothDNA            （前端 dnaDecoder 邏輯）
-  │     └─ 種族、體型、顏色、眼型、裝飾
-  ├─ 4. Canvas 即時渲染像素精靈
-  │
-  └─ 5. GET /api/bitmoth/:hash       （HTTP → Backend）
-              │
-              ├─ DB 查詢 hash（MySQL）
-              │   ├─ HIT  → 直接回傳快取的 name / stats
-              │   └─ MISS →
-              │       ├─ 組裝 Ollama prompt（DNA + 規則）
-              │       ├─ POST ollama/api/generate
-              │       ├─ 解析 JSON 回應（失敗時 fallback 確定性數值）
-              │       ├─ INSERT INTO bitmoth_cache
-              │       └─ 回傳 name / stats
-              │
-Browser 收到 name + stats，合併 DNA 更新卡片
+  └───→ 蛋發光 ✨（識別完成）
+              ↓
+          等待孵化
+              ↓
+        孵化完成 🦋
+   資料存入本地，不再需要網路
+
+※ 無網路時蛋持續停留在「待識別」狀態
 ```
 
 ---
 
-## 技術棧
+## API 文件
 
-### Web Demo 前端
+### `GET /api/pokedex/:hash`
 
-| 類別 | 技術 |
-|------|------|
-| 語言 | 純 HTML / Vanilla JS（無 framework） |
-| 雜湊 | Web Crypto API `SubtleCrypto.digest('SHA-256')` |
-| 像素渲染 | Canvas 2D API（16×24 點陣，左右鏡射） |
-| 字型 | Press Start 2P（Google Fonts） |
-
-### 後端（API Server）
-
-| 類別 | 技術 | 用途 |
-|------|------|------|
-| Runtime | Node.js 18+ | ES Module，內建 fetch |
-| Web Framework | Fastify | 輕量 API + 靜態檔案 serve |
-| 資料庫 | MySQL 8（Docker） | 永久快取；可改 .env 指向任意 MySQL |
-| DB Driver | `mysql2` | Promise pool |
-| AI 生成 | Ollama（本地）| 生成怪獸名稱、稱號、數值、描述 |
-
-### 未來 Mobile App（規劃中）
-
-| 類別 | 技術 |
-|------|------|
-| 跨平台核心 | Expo + Expo Router |
-| 加密邏輯 | `crypto-js` |
-| 相機 / QR | `expo-camera` |
-| 像素渲染 | `react-native-svg` |
-| UI | NativeWind v4+ |
-
----
-
-## 專案結構
-
-```
-bitmoth/
-├── docker-compose.yml              # MySQL 8 container
-├── .env                            # 本機環境變數（git ignored）
-├── .env.example                    # 環境變數範本
-│
-└── apps/
-    └── server/                     # Fastify API Server（同時 serve 前端）
-        ├── index.js                # 入口：啟動 server、initDb、註冊 routes
-        ├── package.json
-        ├── public/
-        │   └── index.html          # Web Demo 前端（單頁，含 Canvas 渲染）
-        └── src/
-            ├── dnaDecoder.js       # hash → BitmothDNA（演算法凍結）
-            ├── db/
-            │   └── index.js        # MySQL pool、initDb、getCached、insertCache
-            ├── ollama/
-            │   ├── prompt.js       # buildPrompt(dna) → LLM prompt string
-            │   └── client.js       # generateStats（Ollama）+ generateFallbackStats
-            └── routes/
-                └── bitmoth.js      # GET /api/bitmoth/:hash、GET /api/gallery
-```
-
----
-
-## API
-
-### `GET /api/bitmoth/:hash`
-
-傳入 64 位元 hex SHA-256 hash，回傳彼魔資料。
+查詢圖鑑，無記錄回傳 `404`。
 
 **Response：**
 ```json
 {
   "hash": "7b2cbf...",
-  "cached": true,
+  "schemaVersion": 1,
+  "raceId": 2,
   "title": "源碼的",
   "name": "暴食",
   "flavor": "吞噬一切數據的原初之獸，其咆哮化作亂碼席捲世界。",
@@ -182,28 +203,44 @@ bitmoth/
   "atk": 72,
   "def": 55,
   "spd": 38,
-  "dna": {
-    "schemaVersion": 1,
-    "primaryColor": "#7b2cbf",
-    "secondaryColor": "...",
-    "raceId": 2,
-    "variantId": 1,
-    "eyeId": 3,
-    "decoId": 0,
-    "entropyHex": "..."
-  }
+  "discoveredAt": "2025-06-10T00:00:00.000Z"
 }
 ```
 
-### `GET /api/gallery`
+### `POST /api/pokedex`
 
-回傳最近 50 筆召喚記錄（含 DNA）。
+登記新怪獸到圖鑑。同一 hash 重複提交不報錯，永遠回傳第一筆（first-write canonical）。
+
+**Request body：**
+```json
+{
+  "hash": "7b2cbf...",
+  "raceId": 2,
+  "title": "源碼的",
+  "name": "暴食",
+  "flavor": "...",
+  "hp": 480, "atk": 72, "def": 55, "spd": 38,
+  "imageBase64": "data:image/png;base64,..."
+}
+```
+
+**Response：**
+- `201`：新登記成功，`registered: true`
+- `200`：已存在，回傳既有資料，`registered: false`
+
+### `GET /api/pokedex`
+
+最近 50 筆圖鑑列表（不含 image）。
+
+### `GET /api/bitmoth/:hash`
+
+觸發 Ollama AI 生成名稱與數值（server 內部快取用）。
 
 ---
 
 ## 彼魔種族系統
 
-共定義 **9 大種族**，由 DNA `12 ~ 13` 碼決定（`十進位 mod 9`）。
+共定義 **9 大種族**，由 DNA `12 ~ 13` 碼決定（十進位 mod 9）。
 
 | ID | 種族 | 外觀風格 | 主色傾向 | 數值傾向 |
 |----|------|---------|---------|---------|
@@ -227,13 +264,13 @@ bitmoth/
 |---|---|---|
 | `0 ~ 5`（共 6 碼） | 主體色系 | 轉為 Hex 顏色（如 `#7B2CBF`），作為皮膚或外殼主色 |
 | `6 ~ 11`（共 6 碼） | 次要裝飾色 | 用於眼睛、斑紋、發光特效；元素種以此判斷元素屬性 |
-| `12 ~ 13`（共 2 碼） | 種族（Race ID） | 十進位 mod 9，對應上方 9 大種族表 |
+| `12 ~ 13`（共 2 碼） | 種族（Race ID） | 十進位 mod 9，對應 9 大種族表 |
 | `14 ~ 15`（共 2 碼） | 體型變體（Variant ID） | 十進位 mod 4，決定該種族內的具體輪廓 |
 | `16 ~ 17`（共 2 碼） | 魔眼特徵（Eye ID） | 十進位 mod 6（獨眼、三眼、裂瞳、電子眼、空洞眼、巨獸黑瞳） |
 | `18 ~ 19`（共 2 碼） | 裝飾特徵（Deco ID） | 十進位 mod 4，從種族專屬裝飾池中抽取 |
 | `20 ~ 63`（其餘碼） | 傳給 Ollama | 作為 AI 生成名稱與數值的熵來源 |
 
-> **演算法穩定性**：`dnaDecoder.js` 凍結後不得修改，否則相同輸入將召喚出不同的彼魔。`schemaVersion` 欄位記錄版本，方便未來分流處理。
+> **演算法穩定性**：`packages/core/dnaDecoder.js` 凍結後不得修改，否則相同輸入將召喚出不同的彼魔。`schemaVersion` 欄位記錄版本，方便未來分流處理。
 
 ---
 
@@ -270,13 +307,21 @@ bitmoth/
 
 ## 技術注意事項
 
-### Canvas 像素渲染
+### @bitmoth/core
+
+`packages/core` 為 npm workspace 共用套件，被 `apps/server`、`apps/desktop`、`apps/mobile` 同時引用。修改 `dnaDecoder.js` 會影響所有平台，需謹慎版本控管。
+
+### 圖鑑一致性
+
+圖鑑 server 使用 `INSERT IGNORE` 搭配 hash PRIMARY KEY，確保同一隻彼魔的名稱與數值只被寫入一次（first-write canonical）。多個裝置同時發現同一隻彼魔時，第一筆寫入的資料即為正典。
+
+### 離線行為
+
+孵化前必須連線至圖鑑 server。無網路時蛋停留在「待識別」狀態，直到連線後自動重試。孵化完成後的彼魔資料永久存在裝置本地，不再需要網路。
+
+### Desktop Canvas 像素渲染
 
 - 16×24 點陣（左半 8 列，右半鏡射），每格 14px，canvas 共 224×336
 - 主色（body）+ 次色（outline）+ 白色高光 + 強制眼睛座標
 - 使用 `shadowBlur` 實現次色光暈效果
 - 掃描線 overlay 模擬 CRT 顯示器風格
-
-### 分享連結
-
-詳情頁點「分享連結」會將 seed 字串寫入 `?seed=<value>` query string，開啟連結即自動召喚同一隻彼魔。
