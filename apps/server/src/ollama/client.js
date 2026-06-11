@@ -1,5 +1,17 @@
-const RACE_TITLES  = ['熔岩的','星光的','深淵的','荒野的','深海的','天際的','元素的','鋼鐵的','幽冥的'];
-const RACE_NAMES   = ['炎龍暴食','星焰精靈','裂淵惡魔','荒野鋼爪','深海潮王','天際疾翼','元素具現','鐵甲衛士','幽冥靈魂'];
+import { RACES } from '@bitmoth/core';
+
+const STAT_PROFILES = [
+  { hp: 0.70, atk: 0.85, def: 0.80, spd: 0.50 }, // 龍族
+  { hp: 0.30, atk: 0.55, def: 0.40, spd: 0.92 }, // 妖精族
+  { hp: 0.60, atk: 0.82, def: 0.60, spd: 0.68 }, // 惡魔族
+  { hp: 0.85, atk: 0.80, def: 0.60, spd: 0.50 }, // 野獸族
+  { hp: 0.60, atk: 0.50, def: 0.85, spd: 0.80 }, // 水族
+  { hp: 0.40, atk: 0.60, def: 0.40, spd: 0.99 }, // 鳥族
+  { hp: 0.60, atk: 0.65, def: 0.65, spd: 0.65 }, // 元素族
+  { hp: 0.60, atk: 0.50, def: 0.92, spd: 0.30 }, // 構裝族
+  { hp: 0.50, atk: 0.88, def: 0.30, spd: 0.62 }, // 亡靈族
+];
+
 const RACE_FLAVORS = [
   '熔岩鑄就，吞噬一切的龍裔之王。',
   '誕生於永恆星光，輕盈而致命。',
@@ -10,17 +22,6 @@ const RACE_FLAVORS = [
   '元素的具現，力量源自自然本身。',
   '機械構造的守護者，堅不可摧。',
   '死亡的使者，超越時間的亡靈。',
-];
-const STAT_PROFILES = [
-  { hp: 0.70, atk: 0.85, def: 0.80, spd: 0.50 }, // Dragon
-  { hp: 0.30, atk: 0.55, def: 0.40, spd: 0.92 }, // Fairy
-  { hp: 0.60, atk: 0.82, def: 0.60, spd: 0.68 }, // Demon
-  { hp: 0.85, atk: 0.80, def: 0.60, spd: 0.50 }, // Beast
-  { hp: 0.60, atk: 0.50, def: 0.85, spd: 0.80 }, // Fish
-  { hp: 0.40, atk: 0.60, def: 0.40, spd: 0.99 }, // Bird
-  { hp: 0.60, atk: 0.65, def: 0.65, spd: 0.65 }, // Elemental
-  { hp: 0.60, atk: 0.50, def: 0.92, spd: 0.30 }, // Mech
-  { hp: 0.50, atk: 0.88, def: 0.30, spd: 0.62 }, // Undead
 ];
 
 // 通用 fallback sprite：簡單生物輪廓 + 上下呼吸動畫（12×12）
@@ -38,11 +39,7 @@ const BASE_FRAME = [
   [0,0,1,0,0,0,0,0,1,0,0,0],
   [0,0,0,1,1,1,1,1,0,0,0,0],
 ];
-// 呼吸幀：整體下移一列
-const BOB_FRAME = [
-  new Array(12).fill(0),
-  ...BASE_FRAME.slice(0, 11),
-];
+const BOB_FRAME = [new Array(12).fill(0), ...BASE_FRAME.slice(0, 11)];
 const FALLBACK_FRAMES = [BASE_FRAME, BOB_FRAME, BASE_FRAME];
 
 function isValidFrames(frames) {
@@ -99,8 +96,8 @@ export function generateFallbackStats(dna) {
   }
 
   return {
-    title:  RACE_TITLES[dna.raceId],
-    name:   RACE_NAMES[dna.raceId],
+    title:  '',
+    name:   RACES[dna.raceId],
     flavor: RACE_FLAVORS[dna.raceId],
     hp:  Math.min(999, Math.max(100, Math.round(100 + p.hp * 800 + (seed & 0xFF)))),
     atk, def, spd,

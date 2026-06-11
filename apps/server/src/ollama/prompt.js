@@ -1,11 +1,19 @@
-const RACE_NAMES = ['龍種','妖精種','惡魔種','獸種','魚種','鳥種','元素種','機械種','亡靈種'];
+import { RACES } from '@bitmoth/core';
+
 const STAT_HINTS = [
-  '高 ATK / DEF','高 SPD，低 HP','均衡偏高 ATK','高 HP / ATK',
-  '高 DEF / SPD','最高 SPD','依屬性偏移','高 DEF，低 SPD','高 ATK，低 DEF',
+  '高 ATK / DEF',   // 龍族
+  '高 SPD，低 HP',  // 妖精族
+  '均衡偏高 ATK',   // 惡魔族
+  '高 HP / ATK',    // 野獸族
+  '高 DEF / SPD',   // 水族
+  '最高 SPD',       // 鳥族
+  '依屬性偏移',     // 元素族
+  '高 DEF，低 SPD', // 構裝族
+  '高 ATK，低 DEF', // 亡靈族
 ];
 
 export function buildPrompt(dna) {
-  const race = RACE_NAMES[dna.raceId];
+  const race = RACES[dna.raceId];
   return `你是一個奇幻世界的神話學者，負責為召喚出的彼魔賦予名諱、數值與像素外形。
 
 ## 彼魔基因

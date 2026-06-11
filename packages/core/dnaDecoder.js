@@ -1,5 +1,18 @@
 export const DNA_SCHEMA_VERSION = 1;
 
+// D&D 風格種族 enum，index 對應 raceId (0–8)
+export const RACES = [
+  '龍族',   // 0 Dragon
+  '妖精族', // 1 Fey
+  '惡魔族', // 2 Fiend
+  '野獸族', // 3 Beast
+  '水族',   // 4 Aquatic
+  '鳥族',   // 5 Avian
+  '元素族', // 6 Elemental
+  '構裝族', // 7 Construct
+  '亡靈族', // 8 Undead
+];
+
 export function decodeDna(hash) {
   return {
     schemaVersion: DNA_SCHEMA_VERSION,

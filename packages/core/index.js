@@ -1,1 +1,1 @@
-export { decodeDna, DNA_SCHEMA_VERSION } from './dnaDecoder.js';
+export { decodeDna, DNA_SCHEMA_VERSION, RACES } from './dnaDecoder.js';
