@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { decodeDna } from '@bitmoth/core';
+import { decodeDna, EGG_SPRITES } from '@bitmoth/core';
 // import { lookupPokedex, registerPokedex, fetchStats } from '../lib/pokedex';
 import { fetchStats } from '../lib/pokedex';
 
@@ -25,6 +25,15 @@ interface Props {
 
 const CELL = 14;
 
+// 搖晃動畫：將蛋上半部（rows 0-5）左移或右移 1 格
+function tiltFrame(frame: number[][], dir: -1 | 0 | 1): number[][] {
+  return frame.map((row, r) => {
+    if (dir === 0 || r >= 6) return row;
+    if (dir === -1) return [...row.slice(1), 0];       // 向左搖
+    return [0, ...row.slice(0, row.length - 1)];        // 向右搖
+  });
+}
+
 export function EggScreen({ hash, onBack, onHatched }: Props) {
   const [phase, setPhase] = useState<Phase>('identifying');
   const [hatched, setHatched] = useState<HatchedData | null>(null);
@@ -32,72 +41,98 @@ export function EggScreen({ hash, onBack, onHatched }: Props) {
   const rafRef = useRef<number>(0);
 
   const dna = decodeDna(hash);
+  const egg = EGG_SPRITES[dna.raceId];
 
+  // hash 變更時重置
   useEffect(() => {
-    renderEgg();
+    setPhase('identifying');
+    setHatched(null);
     identify();
     return () => cancelAnimationFrame(rafRef.current);
   }, [hash]);
 
-  // 孵化後啟動 pixel sprite 動畫
+  // phase 變更時切換動畫
   useEffect(() => {
-    if (phase !== 'hatched' || !hatched?.frames?.length) return;
-    const frames = hatched.frames;
-    const color = dna.primaryColor;
-    let idx = 0;
-    let last = 0;
-    const INTERVAL = 600;
+    cancelAnimationFrame(rafRef.current);
+    if (phase === 'identifying') animateEgg(600, false);
+    else if (phase === 'identified') animateEgg(250, true);
+    else if (phase === 'hatching') animateEgg(100, true);
+    else if (phase === 'hatched' && hatched?.frames?.length) animateSprite(hatched.frames);
+  }, [phase, hatched]);
+
+  // ── 蛋動畫：搖晃循環 center→left→center→right ──────────────────────
+  function animateEgg(interval: number, glow: boolean) {
+    const { frame, shellColor, markColor, glowColor } = egg;
+    const shell = glow ? glowColor : shellColor;
+    const rockSeq: Array<-1 | 0 | 1> = [0, -1, 0, 1];
+    const frames = rockSeq.map(d => tiltFrame(frame, d));
+    let idx = 0, last = 0;
 
     function tick(ts: number) {
-      if (ts - last >= INTERVAL) {
-        renderSprite(frames[idx], color);
-        idx = (idx + 1) % frames.length;
+      if (ts - last >= interval) {
+        drawGrid(frames[idx % frames.length], shell, markColor);
+        idx++;
         last = ts;
       }
       rafRef.current = requestAnimationFrame(tick);
     }
-
-    renderSprite(frames[0], color);
+    drawGrid(frames[0], shell, markColor);
     rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [phase, hatched]);
-
-  function renderEgg() {
-    cancelAnimationFrame(rafRef.current);
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d')!;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = dna.primaryColor;
-    ctx.beginPath();
-    ctx.ellipse(112, 140, 70, 90, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = dna.secondaryColor;
-    ctx.lineWidth = 4;
-    ctx.stroke();
   }
 
-  function renderSprite(grid: number[][], color: string) {
+  // ── 孵化後怪獸點陣動畫 ──────────────────────────────────────────────
+  function animateSprite(spriteFrames: number[][][]) {
+    let idx = 0, last = 0;
+    function tick(ts: number) {
+      if (ts - last >= 600) {
+        drawSingleColor(spriteFrames[idx % spriteFrames.length], dna.primaryColor);
+        idx++;
+        last = ts;
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    }
+    drawSingleColor(spriteFrames[0], dna.primaryColor);
+    rafRef.current = requestAnimationFrame(tick);
+  }
+
+  // ── Canvas 繪圖 ──────────────────────────────────────────────────────
+  function drawGrid(grid: number[][], c1: string, c2: string) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
-    const rows = grid.length;
-    const cols = grid[0]?.length ?? 0;
-    const ox = Math.floor((canvas.width - cols * CELL) / 2);
+    const rows = grid.length, cols = grid[0]?.length ?? 0;
+    const ox = Math.floor((canvas.width  - cols * CELL) / 2);
     const oy = Math.floor((canvas.height - rows * CELL) / 2);
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const v = grid[r][c];
+        if (!v) continue;
+        ctx.fillStyle = v === 1 ? c1 : c2;
+        ctx.fillRect(ox + c * CELL, oy + r * CELL, CELL - 1, CELL - 1);
+      }
+    }
+  }
 
+  function drawSingleColor(grid: number[][], color: string) {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d')!;
+    const rows = grid.length, cols = grid[0]?.length ?? 0;
+    const ox = Math.floor((canvas.width  - cols * CELL) / 2);
+    const oy = Math.floor((canvas.height - rows * CELL) / 2);
     ctx.fillStyle = '#111';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = color;
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        if (grid[r][c]) {
-          ctx.fillRect(ox + c * CELL, oy + r * CELL, CELL - 1, CELL - 1);
-        }
+        if (grid[r][c]) ctx.fillRect(ox + c * CELL, oy + r * CELL, CELL - 1, CELL - 1);
       }
     }
   }
 
+  // ── 識別流程 ─────────────────────────────────────────────────────────
   async function identify() {
     setPhase('identifying');
     try {
@@ -106,16 +141,9 @@ export function EggScreen({ hash, onBack, onHatched }: Props) {
       // if (!entry) {
       //   const stats = await fetchStats(hash);
       //   const result = await registerPokedex({
-      //     hash,
-      //     schemaVersion: dna.schemaVersion,
-      //     raceId: dna.raceId,
-      //     title: stats.title,
-      //     name: stats.name,
-      //     flavor: stats.flavor,
-      //     hp: stats.hp,
-      //     atk: stats.atk,
-      //     def: stats.def,
-      //     spd: stats.spd,
+      //     hash, schemaVersion: dna.schemaVersion, raceId: dna.raceId,
+      //     title: stats.title, name: stats.name, flavor: stats.flavor,
+      //     hp: stats.hp, atk: stats.atk, def: stats.def, spd: stats.spd,
       //   });
       //   entry = result.entry;
       // }
@@ -123,19 +151,18 @@ export function EggScreen({ hash, onBack, onHatched }: Props) {
       const stats = await fetchStats(hash);
 
       setPhase('identified');
-      // 發光效果：2 秒後開始孵化
       setTimeout(() => {
         setPhase('hatching');
         setTimeout(() => {
           const data: HatchedData = {
             hash,
-            title: stats.title,
-            name: stats.name,
+            title:  stats.title,
+            name:   stats.name,
             flavor: stats.flavor,
-            hp: stats.hp,
-            atk: stats.atk,
-            def: stats.def,
-            spd: stats.spd,
+            hp:     stats.hp,
+            atk:    stats.atk,
+            def:    stats.def,
+            spd:    stats.spd,
             frames: stats.frames,
           };
           setHatched(data);
