@@ -25,13 +25,22 @@ interface Props {
 
 const CELL = 14;
 
-// 搖晃動畫：將蛋上半部（rows 0-5）左移或右移 1 格
-function tiltFrame(frame: number[][], dir: -1 | 0 | 1): number[][] {
-  return frame.map((row, r) => {
-    if (dir === 0 || r >= 6) return row;
-    if (dir === -1) return [...row.slice(1), 0];       // 向左搖
-    return [0, ...row.slice(0, row.length - 1)];        // 向右搖
-  });
+// 蛋動畫：整體上下位移（bob）
+function bobFrame(frame: number[][], dy: -1 | 0 | 1): number[][] {
+  const empty = new Array(frame[0]?.length ?? 12).fill(0);
+  if (dy === -1) return [...frame.slice(1), empty];           // 上移
+  if (dy ===  1) return [empty, ...frame.slice(0, -1)];       // 下移
+  return frame;
+}
+
+// 怪物動畫：整體左右位移（sway）
+function swayFrame(frame: number[][], dx: -1 | 0 | 1): number[][] {
+  if (dx === 0) return frame;
+  return frame.map(row =>
+    dx === -1
+      ? [...row.slice(1), 0]
+      : [0, ...row.slice(0, row.length - 1)]
+  );
 }
 
 export function EggScreen({ hash, onBack, onHatched }: Props) {
@@ -60,12 +69,12 @@ export function EggScreen({ hash, onBack, onHatched }: Props) {
     else if (phase === 'hatched' && hatched?.frames?.length) animateSprite(hatched.frames);
   }, [phase, hatched]);
 
-  // ── 蛋動畫：搖晃循環 center→left→center→right ──────────────────────
+  // ── 蛋動畫：上下 bob（center→up→center→down）─────────────────────────
   function animateEgg(interval: number, glow: boolean) {
     const { frame, shellColor, markColor, glowColor } = egg;
     const shell = glow ? glowColor : shellColor;
-    const rockSeq: Array<-1 | 0 | 1> = [0, -1, 0, 1];
-    const frames = rockSeq.map(d => tiltFrame(frame, d));
+    const bobSeq: Array<-1 | 0 | 1> = [0, -1, 0, 1];
+    const frames = bobSeq.map(d => bobFrame(frame, d));
     let idx = 0, last = 0;
 
     function tick(ts: number) {
@@ -80,18 +89,21 @@ export function EggScreen({ hash, onBack, onHatched }: Props) {
     rafRef.current = requestAnimationFrame(tick);
   }
 
-  // ── 孵化後怪獸點陣動畫（雙色：1=primaryColor, 2=secondaryColor）──────
+  // ── 怪獸待機動畫：左右 sway（center→left→center→right）────────────────
   function animateSprite(spriteFrames: number[][][]) {
+    const base = spriteFrames[0];
+    const swaySeq: Array<-1 | 0 | 1> = [0, -1, 0, 1];
+    const frames = swaySeq.map(dx => swayFrame(base, dx));
     let idx = 0, last = 0;
     function tick(ts: number) {
-      if (ts - last >= 600) {
-        drawGrid(spriteFrames[idx % spriteFrames.length], dna.primaryColor, dna.secondaryColor);
+      if (ts - last >= 400) {
+        drawGrid(frames[idx % frames.length], dna.primaryColor, dna.secondaryColor);
         idx++;
         last = ts;
       }
       rafRef.current = requestAnimationFrame(tick);
     }
-    drawGrid(spriteFrames[0], dna.primaryColor, dna.secondaryColor);
+    drawGrid(frames[0], dna.primaryColor, dna.secondaryColor);
     rafRef.current = requestAnimationFrame(tick);
   }
 
