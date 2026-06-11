@@ -28,10 +28,10 @@ const RACE_FLAVORS = [
 const BASE_FRAME = [
   [0,0,0,1,1,1,1,1,0,0,0,0],
   [0,0,1,0,0,0,0,0,1,0,0,0],
-  [0,1,0,1,0,1,0,1,0,1,0,0],
+  [0,1,0,2,0,1,0,2,0,1,0,0], // 2=眼睛
   [0,1,0,0,0,1,0,0,0,1,0,0],
   [0,1,0,0,0,0,0,0,0,1,0,0],
-  [0,0,1,0,0,0,0,0,1,0,0,0],
+  [0,0,1,0,2,2,2,0,1,0,0,0], // 2=嘴
   [0,0,0,1,1,1,1,1,0,0,0,0],
   [0,0,1,0,0,0,0,0,1,0,0,0],
   [0,1,0,0,0,0,0,0,0,1,0,0],
@@ -51,7 +51,7 @@ function isValidFrames(frames) {
     if (!Array.isArray(frame) || frame.length !== rows) return false;
     for (const row of frame) {
       if (!Array.isArray(row) || row.length !== cols) return false;
-      if (!row.every(v => v === 0 || v === 1)) return false;
+      if (!row.every(v => v === 0 || v === 1 || v === 2)) return false;
     }
   }
   return true;

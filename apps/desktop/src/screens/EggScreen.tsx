@@ -80,22 +80,22 @@ export function EggScreen({ hash, onBack, onHatched }: Props) {
     rafRef.current = requestAnimationFrame(tick);
   }
 
-  // ── 孵化後怪獸點陣動畫 ──────────────────────────────────────────────
+  // ── 孵化後怪獸點陣動畫（雙色：1=primaryColor, 2=secondaryColor）──────
   function animateSprite(spriteFrames: number[][][]) {
     let idx = 0, last = 0;
     function tick(ts: number) {
       if (ts - last >= 600) {
-        drawSingleColor(spriteFrames[idx % spriteFrames.length], dna.primaryColor);
+        drawGrid(spriteFrames[idx % spriteFrames.length], dna.primaryColor, dna.secondaryColor);
         idx++;
         last = ts;
       }
       rafRef.current = requestAnimationFrame(tick);
     }
-    drawSingleColor(spriteFrames[0], dna.primaryColor);
+    drawGrid(spriteFrames[0], dna.primaryColor, dna.secondaryColor);
     rafRef.current = requestAnimationFrame(tick);
   }
 
-  // ── Canvas 繪圖 ──────────────────────────────────────────────────────
+  // ── Canvas 繪圖（0=透明, 1=c1, 2=c2）────────────────────────────────
   function drawGrid(grid: number[][], c1: string, c2: string) {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -109,25 +109,8 @@ export function EggScreen({ hash, onBack, onHatched }: Props) {
       for (let c = 0; c < cols; c++) {
         const v = grid[r][c];
         if (!v) continue;
-        ctx.fillStyle = v === 1 ? c1 : c2;
+        ctx.fillStyle = v === 2 ? c2 : c1;
         ctx.fillRect(ox + c * CELL, oy + r * CELL, CELL - 1, CELL - 1);
-      }
-    }
-  }
-
-  function drawSingleColor(grid: number[][], color: string) {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d')!;
-    const rows = grid.length, cols = grid[0]?.length ?? 0;
-    const ox = Math.floor((canvas.width  - cols * CELL) / 2);
-    const oy = Math.floor((canvas.height - rows * CELL) / 2);
-    ctx.fillStyle = '#111';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = color;
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        if (grid[r][c]) ctx.fillRect(ox + c * CELL, oy + r * CELL, CELL - 1, CELL - 1);
       }
     }
   }
