@@ -23,6 +23,43 @@ const STAT_PROFILES = [
   { hp: 0.50, atk: 0.88, def: 0.30, spd: 0.62 }, // Undead
 ];
 
+// 通用 fallback sprite：簡單生物輪廓 + 上下呼吸動畫（12×12）
+const BASE_FRAME = [
+  [0,0,0,1,1,1,1,1,0,0,0,0],
+  [0,0,1,0,0,0,0,0,1,0,0,0],
+  [0,1,0,1,0,1,0,1,0,1,0,0],
+  [0,1,0,0,0,1,0,0,0,1,0,0],
+  [0,1,0,0,0,0,0,0,0,1,0,0],
+  [0,0,1,0,0,0,0,0,1,0,0,0],
+  [0,0,0,1,1,1,1,1,0,0,0,0],
+  [0,0,1,0,0,0,0,0,1,0,0,0],
+  [0,1,0,0,0,0,0,0,0,1,0,0],
+  [0,1,0,0,0,0,0,0,0,1,0,0],
+  [0,0,1,0,0,0,0,0,1,0,0,0],
+  [0,0,0,1,1,1,1,1,0,0,0,0],
+];
+// 呼吸幀：整體下移一列
+const BOB_FRAME = [
+  new Array(12).fill(0),
+  ...BASE_FRAME.slice(0, 11),
+];
+const FALLBACK_FRAMES = [BASE_FRAME, BOB_FRAME, BASE_FRAME];
+
+function isValidFrames(frames) {
+  if (!Array.isArray(frames) || frames.length < 2) return false;
+  const rows = frames[0]?.length;
+  const cols = frames[0]?.[0]?.length;
+  if (!rows || !cols) return false;
+  for (const frame of frames) {
+    if (!Array.isArray(frame) || frame.length !== rows) return false;
+    for (const row of frame) {
+      if (!Array.isArray(row) || row.length !== cols) return false;
+      if (!row.every(v => v === 0 || v === 1)) return false;
+    }
+  }
+  return true;
+}
+
 export async function generateStats(prompt) {
   const url = (process.env.OLLAMA_URL || 'http://localhost:11434') + '/api/generate';
   const res = await fetch(url, {
@@ -34,7 +71,7 @@ export async function generateStats(prompt) {
       format: 'json',
       stream: false,
     }),
-    signal: AbortSignal.timeout(30_000),
+    signal: AbortSignal.timeout(60_000),
   });
   if (!res.ok) throw new Error(`Ollama HTTP ${res.status}`);
   const data = await res.json();
@@ -42,7 +79,8 @@ export async function generateStats(prompt) {
   if (!parsed.title || !parsed.name || !parsed.flavor || parsed.hp == null) {
     throw new Error('Unexpected Ollama response shape');
   }
-  return parsed;
+  const frames = isValidFrames(parsed.frames) ? parsed.frames : FALLBACK_FRAMES;
+  return { ...parsed, frames };
 }
 
 export function generateFallbackStats(dna) {
@@ -66,5 +104,6 @@ export function generateFallbackStats(dna) {
     flavor: RACE_FLAVORS[dna.raceId],
     hp:  Math.min(999, Math.max(100, Math.round(100 + p.hp * 800 + (seed & 0xFF)))),
     atk, def, spd,
+    frames: FALLBACK_FRAMES,
   };
 }

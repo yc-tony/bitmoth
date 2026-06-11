@@ -12,6 +12,7 @@ export interface PokedexEntry {
   def: number;
   spd: number;
   discoveredAt: string;
+  frames?: number[][][];
 }
 
 export async function lookupPokedex(hash: string): Promise<PokedexEntry | null> {
